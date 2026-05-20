@@ -759,10 +759,10 @@ function render(d, con){
   if(times.length){
     var sorted = times.slice().sort(function(a,b){ return a-b; });
     var dMin = sorted[0], dMax = sorted[sorted.length-1];
-    yAxisLabels('#dist-ya', dMin, dMax, 5);
+    yAxisLabels('#dist-ya', 0, dMax, 5);
     var dH = '';
-    sorted.slice(0,80).forEach(function(t){
-      var h = Math.max(2, Math.round((t-dMin)/(dMax-dMin||1)*100));
+    sorted.slice(0,100).forEach(function(t){
+      var h = Math.max(2, Math.round(t/dMax*100));
       dH += '<div class="bar bar-hist" style="height:'+h+'%" title="'+t+'ms"></div>';
     });
     $('#dist-bars').html(dH);
