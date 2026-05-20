@@ -1,21 +1,21 @@
-# Salvo ⚡
+# Barrage
 ### API Load Testing & Performance Monitor
 
-A load testing tool built with Java 17 and Spring Boot. Point it at any REST API, fire off a configurable number of concurrent requests, and get a real-time breakdown — response times, success rates, failure counts, and a response time distribution chart.
+Fire configurable bursts of concurrent HTTP requests at any REST endpoint and get an instant breakdown — response timelines, latency percentiles (P50/P90/P99), success rates, status code distribution, and a run history — all in a live dashboard.
 
 ---
 
 ## Tech Stack
 
-| Layer      | Technology                              |
-|------------|-----------------------------------------|
-| Language   | Java 17                                 |
-| Framework  | Spring Boot 3.2                         |
-| REST API   | Spring MVC (`@RestController`)          |
-| Concurrency| `ExecutorService`, `AtomicInteger`      |
-| Frontend   | HTML5, CSS, JavaScript, jQuery          |
-| Testing    | JUnit 5, Spring Boot Test               |
-| Build      | Maven                                   |
+| Layer       | Technology                              |
+|-------------|-----------------------------------------|
+| Language    | Java 17                                 |
+| Framework   | Spring Boot 3.2                         |
+| REST API    | Spring MVC (`@RestController`)          |
+| Concurrency | `ExecutorService`, `AtomicInteger`      |
+| Frontend    | HTML5, CSS, JavaScript, jQuery          |
+| Build       | Maven                                   |
+| Container   | Docker (multi-stage, Alpine)            |
 
 ---
 
@@ -24,11 +24,8 @@ A load testing tool built with Java 17 and Spring Boot. Point it at any REST API
 **Prerequisites:** Java 17+, Maven
 
 ```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/salvo.git
-cd salvo
-
-# Run the app
+git clone https://github.com/YOUR_USERNAME/barrage.git
+cd barrage
 mvn spring-boot:run
 ```
 
@@ -36,17 +33,23 @@ Open `http://localhost:8080` in your browser.
 
 ---
 
-## Running the Tests
+## Docker
 
 ```bash
-mvn test
+docker build -t barrage .
+docker run -p 8080:8080 barrage
 ```
 
-The test suite covers:
-- Result object is returned with correct totals
-- Invalid/unreachable URLs produce failures gracefully, no crashes
-- Response time stats are mathematically valid (min ≤ avg ≤ max)
-- 404 responses are correctly counted as failures
+The multi-stage Dockerfile uses a Maven Alpine build stage and a lightweight Eclipse Temurin 17 JRE Alpine runtime image (~180MB final image).
+
+---
+
+## Deploying to Render
+
+1. Push the repo to GitHub
+2. Create a new **Web Service** on [Render](https://render.com), connect the repo
+3. Set **Environment** to `Docker` — Render will detect the Dockerfile automatically
+4. Port `8080` is already exposed in the Dockerfile
 
 ---
 
@@ -74,6 +77,12 @@ Runs a load test against the given URL.
   "avgResponseTimeMs": 142.3,
   "minResponseTimeMs": 98.0,
   "maxResponseTimeMs": 310.0,
+  "p50": 130.0,
+  "p90": 205.0,
+  "p99": 310.0,
+  "requestsPerSecond": 8.3,
+  "totalDurationMs": 2410,
+  "statusCodeCounts": { "200": 19, "0": 1 },
   "responseTimes": [112, 98, 143, 201, "..."]
 }
 ```
@@ -86,21 +95,21 @@ Returns `200 OK` — confirms the server is up.
 ## Project Structure
 
 ```
-src/
-├── main/
-│   ├── java/com/salvo/
-│   │   ├── SalvoApplication.java        # App entry point
-│   │   ├── controller/
-│   │   │   └── LoadTestController.java      # REST endpoints
-│   │   ├── service/
-│   │   │   └── LoadTestService.java         # Concurrent load test logic
-│   │   └── model/
-│   │       ├── LoadTestRequest.java         # Request shape
-│   │       └── LoadTestResult.java          # Response shape
-│   └── resources/
-│       └── static/
-│           └── index.html                   # Dashboard (HTML/CSS/JS/jQuery)
-└── test/
-    └── java/com/salvo/
-        └── LoadTestServiceTest.java         # JUnit 5 test suite
+barrage/
+├── Dockerfile
+├── pom.xml
+└── src/
+    └── main/
+        ├── java/com/barrage/
+        │   ├── BarrageApplication.java
+        │   ├── controller/
+        │   │   └── LoadTestController.java
+        │   ├── service/
+        │   │   └── LoadTestService.java
+        │   └── model/
+        │       ├── LoadTestRequest.java
+        │       └── LoadTestResult.java
+        └── resources/
+            └── static/
+                └── index.html
 ```
