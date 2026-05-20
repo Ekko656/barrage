@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barrage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root {
+  --void:   #02040a;
+  --ink:    #060c18;
+  --deep:   #091220;
+  --layer:  #0d1a2e;
+  --lift:   #122038;
+  --edge:   #1a2f50;
+  --line:   #1e3560;
+  --muted:  #2a4a78;
+  --dim:    #3a5f90;
+  --sub:    #5580b0;
+  --body:   #7aa0cc;
+  --bright: #c0d8f0;
+  --white:  #e8f2ff;
+
+  --cyan:   #00e5ff;
+  --teal:   #00bcd4;
+  --green:  #00e676;
+  --lime:   #76ff03;
+  --amber:  #ffab00;
+  --orange: #ff6d00;
+  --red:    #ff1744;
+  --pink:   #f50057;
+  --purple: #d500f9;
+  --blue:   #2979ff;
+
+  --cyang:  rgba(0,229,255,.07);
+  --cgreen: rgba(0,230,118,.07);
+  --camber: rgba(255,171,0,.07);
+  --cred:   rgba(255,23,68,.07);
+
+  --fn-ui:  'Space Grotesk', sans-serif;
+  --fn-mono:'JetBrains Mono', monospace;
+}
+
+html,body { height:100%; overflow:hidden; background:var(--void); color:var(--body); font-family:var(--fn-mono); font-size:11px; }
+
+/* ───────── ANIMATED BACKGROUND ───────── */
+#bg {
+  position:fixed; inset:0; z-index:0; overflow:hidden;
+  background:
+    radial-gradient(ellipse 130% 90% at 8% 18%, rgba(0,100,220,.18) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 110% at 92% 82%, rgba(110,0,230,.14) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 70% at 50% 50%, rgba(0,190,160,.08) 0%, transparent 50%),
+    var(--void);
+}
+
+/* vignette */
+#bg::before {
+  content:''; position:absolute; inset:0;
+  background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(2,4,10,.7) 100%);
+  pointer-events:none;
+}
+
+/* scanlines */
+#bg::after {
+  content:''; position:absolute; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.06) 2px, rgba(0,0,0,.06) 3px);
+  pointer-events:none;
+}
+
+.beam {
+  position:absolute; border-radius:50%;
+  filter:blur(70px); opacity:0;
+  animation: float linear infinite;
+}
+.b1{width:700px;height:500px;background:radial-gradient(ellipse,rgba(0,220,255,.16),transparent 60%);top:-160px;left:-200px;animation-duration:20s;animation-delay:0s;}
+.b2{width:600px;height:420px;background:radial-gradient(ellipse,rgba(140,0,255,.12),transparent 60%);bottom:-100px;right:-160px;animation-duration:26s;animation-delay:-7s;}
+.b3{width:450px;height:340px;background:radial-gradient(ellipse,rgba(0,210,140,.10),transparent 60%);top:38%;left:42%;animation-duration:32s;animation-delay:-14s;}
+.b4{width:300px;height:280px;background:radial-gradient(ellipse,rgba(41,121,255,.09),transparent 60%);top:20%;right:25%;animation-duration:28s;animation-delay:-20s;}
+
+@keyframes float {
+  0%   {opacity:0; transform:translate(0,0) scale(1);}
+  8%   {opacity:1;}
+  50%  {transform:translate(70px,35px) scale(1.12);}
+  92%  {opacity:1;}
+  100% {opacity:0; transform:translate(0,0) scale(1);}
+}
+
+/* grid — cyan-tinted, tighter */
+#grid {
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(0,180,255,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,180,255,.08) 1px, transparent 1px);
+  background-size:36px 36px;
+  mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 30%, transparent 100%);
+}
+
+/* ───────── APP SHELL ───────── */
+#app {
+  position:relative;z-index:1;
+  display:grid;
+  grid-template-rows: 44px 48px auto 1fr;
+  height:100vh; width:100vw;
+  overflow:hidden;
+}
+
+/* ───────── TOPBAR ───────── */
+#topbar {
+  display:flex;align-items:center;gap:12px;padding:0 18px;
+  border-bottom:1px solid rgba(0,180,255,.1);
+  background:rgba(2,4,10,.96);
+  backdrop-filter:blur(24px);
+  box-shadow: 0 1px 0 rgba(0,200,255,.06), 0 4px 24px rgba(0,0,0,.4);
+}
+
+.logo {
+  display:flex;align-items:center;gap:9px;
+  font-family:var(--fn-ui);
+}
+.logo-mark {
+  width:26px;height:26px;border-radius:5px;flex-shrink:0;
+  background:linear-gradient(135deg, var(--cyan) 0%, var(--blue) 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:900;color:#000;letter-spacing:-.02em;
+  box-shadow:0 0 18px rgba(0,229,255,.35), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.logo-label { line-height:1; }
+.logo-name { font-size:15px;font-weight:700;color:var(--white);letter-spacing:-.03em; }
+.logo-tag  { font-size:8px;color:var(--dim);letter-spacing:.1em;font-family:var(--fn-mono);margin-top:1px; }
+
+.ver-chip {
+  font-size:8px;letter-spacing:.14em;
+  color:var(--cyan);
+  border:1px solid rgba(0,229,255,.18);
+  padding:2px 7px;border-radius:2px;
+  font-family:var(--fn-mono);
+  background:rgba(0,229,255,.04);
+}
+
+.divider { width:1px;height:16px;background:rgba(0,180,255,.12); }
+.sp { flex:1; }
+
+.status-cluster { display:flex;align-items:center;gap:12px; }
+.s-item { display:flex;align-items:center;gap:5px;font-size:9px;color:var(--dim);font-family:var(--fn-mono); }
+.s-dot { width:6px;height:6px;border-radius:50%; }
+.s-dot.on { background:var(--green);box-shadow:0 0 8px var(--green);animation:heartbeat 2.5s ease-in-out infinite; }
+@keyframes heartbeat { 0%,100%{box-shadow:0 0 5px var(--green);}50%{box-shadow:0 0 14px var(--green),0 0 22px rgba(0,230,118,.3);} }
+
+/* ───────── CONFIG BAR ───────── */
+#cfgbar {
+  display:flex;align-items:center;gap:10px;padding:6px 18px;
+  border-bottom:1px solid rgba(0,180,255,.08);
+  background:rgba(4,8,18,.92);
+  backdrop-filter:blur(16px);
+  box-shadow:0 1px 0 rgba(0,0,0,.3);
+}
+
+.cf { display:flex;flex-direction:column;gap:3px; }
+.cf-url { flex:1; }
+.cf > label { font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.15em;font-family:var(--fn-ui); }
+
+.ibox {
+  display:flex;align-items:center;
+  background:rgba(2,4,10,.98);
+  border:1px solid rgba(0,180,255,.12);
+  border-radius:3px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.ibox:focus-within {
+  border-color:rgba(0,229,255,.5);
+  box-shadow:0 0 0 2px rgba(0,229,255,.08), 0 0 16px rgba(0,229,255,.08);
+}
+.ibox-pfx { padding:0 8px;color:var(--cyan);opacity:.4;font-size:12px;user-select:none; }
+input {
+  background:transparent;border:none;outline:none;
+  color:var(--white);font-family:var(--fn-mono);font-size:12px;
+  padding:7px 8px 7px 0;width:100%;
+}
+input::placeholder { color:var(--muted);opacity:.45; }
+input[type=number] { width:60px;padding:7px;text-align:center; }
+
+.fire-btn {
+  font-family:var(--fn-mono);font-size:10px;font-weight:700;letter-spacing:.14em;
+  color:#000;
+  background:linear-gradient(135deg, var(--cyan) 0%, #0af 50%, var(--blue) 100%);
+  background-size:200% 100%;
+  border:none;border-radius:3px;
+  padding:9px 26px;cursor:pointer;white-space:nowrap;
+  transition:background-position .3s, box-shadow .2s, transform .1s, opacity .15s;
+  box-shadow:0 0 22px rgba(0,229,255,.25), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.fire-btn:hover {
+  background-position:100% 0;
+  box-shadow:0 0 32px rgba(0,229,255,.45), 0 0 60px rgba(0,150,255,.2);
+}
+.fire-btn:active { transform:scale(.97); }
+.fire-btn:disabled { opacity:.35;cursor:not-allowed; }
+.fire-btn.go {
+  color:var(--cyan);
+  background:rgba(0,229,255,.08);
+  border:1px solid rgba(0,229,255,.3);
+  box-shadow:none;
+  animation:btngo 1.1s ease-in-out infinite;
+}
+@keyframes btngo { 0%,100%{box-shadow:0 0 8px rgba(0,229,255,.1);}50%{box-shadow:0 0 20px rgba(0,229,255,.4);} }
+
+/* ───────── METRIC STRIP ───────── */
+#metricstrip {
+  display:grid;grid-template-columns:repeat(7,1fr);
+  border-bottom:1px solid var(--edge);
+  background:rgba(9,18,32,.8);
+}
+.metric {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:8px 6px;border-right:1px solid var(--edge);gap:2px;
+  position:relative;
+}
+.metric:last-child { border-right:none; }
+.metric::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  border-radius:0 0 2px 2px;opacity:0;transition:opacity .4s;
+}
+.metric.lit::before { opacity:1; }
+.metric.m-cyan::before  { background:linear-gradient(90deg,transparent,var(--cyan),transparent); box-shadow:0 0 12px var(--cyan); }
+.metric.m-green::before { background:linear-gradient(90deg,transparent,var(--green),transparent); box-shadow:0 0 12px var(--green); }
+.metric.m-amber::before { background:linear-gradient(90deg,transparent,var(--amber),transparent); box-shadow:0 0 12px var(--amber); }
+.metric.m-purple::before{ background:linear-gradient(90deg,transparent,var(--purple),transparent); box-shadow:0 0 12px var(--purple); }
+.metric.m-red::before   { background:linear-gradient(90deg,transparent,var(--red),transparent); box-shadow:0 0 12px var(--red); }
+.metric.m-teal::before  { background:linear-gradient(90deg,transparent,var(--teal),transparent); box-shadow:0 0 12px var(--teal); }
+.metric.m-lime::before  { background:linear-gradient(90deg,transparent,var(--lime),transparent); box-shadow:0 0 12px var(--lime); }
+
+.m-val {
+  font-size:18px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  line-height:1;color:var(--bright);
+  transition:color .3s, text-shadow .3s;
+  font-family:var(--fn-ui);
+}
+.m-val.cyan   { color:var(--cyan);   text-shadow:0 0 20px rgba(0,229,255,.5); }
+.m-val.green  { color:var(--green);  text-shadow:0 0 20px rgba(0,230,118,.5); }
+.m-val.amber  { color:var(--amber);  text-shadow:0 0 20px rgba(255,171,0,.5); }
+.m-val.purple { color:var(--purple); text-shadow:0 0 20px rgba(213,0,249,.5); }
+.m-val.red    { color:var(--red);    text-shadow:0 0 20px rgba(255,23,68,.5); }
+.m-val.teal   { color:var(--teal);   text-shadow:0 0 20px rgba(0,188,212,.5); }
+.m-val.lime   { color:var(--lime);   text-shadow:0 0 20px rgba(118,255,3,.5); }
+.m-lbl { font-size:7px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-family:var(--fn-ui); }
+
+/* ───────── MAIN AREA ───────── */
+#main {
+  flex:1;display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:1px;
+  background:var(--edge);
+  overflow:hidden;
+  min-height:0;
+}
+
+/* ───────── PANEL ───────── */
+.panel {
+  background:rgba(6,12,24,.9);
+  backdrop-filter:blur(10px);
+  display:flex;flex-direction:column;
+  overflow:hidden;min-height:0;
+  position:relative;
+}
+.panel.wide { grid-column:span 2; }
+.panel.tall { grid-row:span 2; }
+
+/* panel header */
+.ph {
+  display:flex;align-items:center;gap:6px;
+  padding:0 12px;height:30px;flex-shrink:0;
+  border-bottom:1px solid rgba(0,180,255,.08);
+  background:rgba(6,12,24,.9);
+  position:relative;
+}
+.ph::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(0,180,255,.12), transparent);
+}
+.dots { display:flex;gap:4px; }
+.dot9 { width:7px;height:7px;border-radius:50%; }
+.d-red { background:#ff5f57; box-shadow:0 0 5px rgba(255,95,87,.5); }
+.d-ylw { background:#ffbd2e; box-shadow:0 0 5px rgba(255,189,46,.5); }
+.d-grn { background:#28ca41; box-shadow:0 0 5px rgba(40,202,65,.5); }
+.ph-title {
+  font-size:8px;color:var(--sub);text-transform:uppercase;letter-spacing:.14em;margin-left:4px;
+  font-family:var(--fn-ui);font-weight:500;
+}
+.ph-sp { flex:1; }
+.ph-badge {
+  font-size:8px;font-weight:600;padding:2px 7px;border-radius:2px;letter-spacing:.06em;
+  font-family:var(--fn-mono);
+}
+.badge-cyan   { background:rgba(0,229,255,.08);color:var(--cyan);border:1px solid rgba(0,229,255,.18); }
+.badge-green  { background:rgba(0,230,118,.08);color:var(--green);border:1px solid rgba(0,230,118,.18); }
+.badge-amber  { background:rgba(255,171,0,.08);color:var(--amber);border:1px solid rgba(255,171,0,.18); }
+.badge-purple { background:rgba(213,0,249,.08);color:var(--purple);border:1px solid rgba(213,0,249,.18); }
+.badge-red    { background:rgba(255,23,68,.08);color:var(--red);border:1px solid rgba(255,23,68,.18); }
+.badge-dim    { background:rgba(42,74,120,.25);color:var(--dim);border:1px solid rgba(42,74,120,.4); }
+
+/* panel body */
+.pb { flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden; }
+.pb.scroll { overflow-y:auto; }
+.pb.scroll::-webkit-scrollbar { width:2px; }
+.pb.scroll::-webkit-scrollbar-thumb { background:var(--edge); }
+
+/* ───────── CHART ENGINE ───────── */
+.chart-wrap { flex:1;display:flex;gap:8px;min-height:0; }
+.y-axis { width:38px;flex-shrink:0;display:flex;flex-direction:column;justify-content:space-between;padding-bottom:20px; }
+.yt { font-size:8px;color:var(--muted);text-align:right;line-height:1; }
+.chart-col { flex:1;display:flex;flex-direction:column;min-height:0; }
+.chart-canvas { flex:1;position:relative;min-height:0; }
+/* grid lines behind bars */
+.chart-canvas::before {
+  content:'';position:absolute;inset:0;
+  background:
+    linear-gradient(transparent calc(0% - 1px), var(--line) calc(0%), transparent calc(0% + 1px)),
+    linear-gradient(transparent calc(25% - 1px), var(--line) calc(25%), transparent calc(25% + 1px)),
+    linear-gradient(transparent calc(50% - 1px), var(--line) calc(50%), transparent calc(50% + 1px)),
+    linear-gradient(transparent calc(75% - 1px), var(--line) calc(75%), transparent calc(75% + 1px)),
+    linear-gradient(transparent calc(100% - 1px), var(--line) calc(100%), transparent calc(100% + 1px));
+  pointer-events:none;z-index:0;
+}
+.bars { position:absolute;inset:0;display:flex;align-items:flex-end;gap:2px; }
+.bar {
+  flex:1;border-radius:1px 1px 0 0;
+  transform:scaleY(0);transform-origin:bottom;
+  transition:transform .28s cubic-bezier(.34,1.4,.64,1);
+  position:relative;z-index:1;cursor:default;min-height:2px;
+}
+.bar.in { transform:scaleY(1); }
+.bar-ok  { background:linear-gradient(to top,rgba(0,180,255,.3),rgba(0,229,255,.7)); }
+.bar-ok:hover { background:linear-gradient(to top,rgba(0,180,255,.5),rgba(0,229,255,1)); box-shadow:0 0 8px rgba(0,229,255,.4); }
+.bar-p90 { background:linear-gradient(to top,rgba(200,130,0,.35),rgba(255,171,0,.7)); }
+.bar-p90:hover { background:linear-gradient(to top,rgba(200,130,0,.5),rgba(255,171,0,1)); }
+.bar-fail{ background:linear-gradient(to top,rgba(200,0,30,.4),rgba(255,23,68,.75)); }
+.bar-fail:hover { background:linear-gradient(to top,rgba(200,0,30,.6),rgba(255,23,68,1)); }
+.bar-hist{ background:linear-gradient(to top,rgba(30,80,180,.3),rgba(41,121,255,.55)); }
+.bar-hist:hover { background:linear-gradient(to top,rgba(30,80,180,.5),rgba(0,229,255,.7)); }
+
+.x-axis { display:flex;justify-content:space-between;padding-top:4px;flex-shrink:0; }
+.xt { font-size:8px;color:var(--muted); }
+
+.chart-legend {
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:6px;border-top:1px solid var(--edge);flex-shrink:0;
+  font-size:9px;color:var(--muted);
+}
+.legend-items { display:flex;gap:12px; }
+.li { display:flex;align-items:center;gap:4px; }
+.li-dot { width:8px;height:8px;border-radius:1px; }
+
+/* ───────── PERCENTILE BLOCK ───────── */
+.pct-grid { display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--edge);flex-shrink:0; }
+.pct-cell { background:var(--deep);padding:10px 8px;text-align:center; }
+.pct-v { font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1; }
+.pct-l { font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:3px; }
+
+.trio { display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;flex-shrink:0; }
+.trio-v { font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--bright); }
+.trio-l { font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-top:2px; }
+.trio-sep { padding-top:8px;border-top:1px solid var(--edge); }
+
+/* pf bar */
+.pf-block { flex-shrink:0; }
+.pf-row { display:flex;justify-content:space-between;margin-bottom:5px;font-size:11px;font-weight:600; }
+.pf-track { height:2px;background:var(--edge);border-radius:2px;overflow:hidden; }
+.pf-fill { height:100%;background:var(--green);width:0;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1); }
+
+/* ───────── STATUS CODES ───────── */
+.codes { display:flex;flex-direction:column;gap:8px; }
+.crow { display:flex;align-items:center;gap:8px; }
+.code-badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:2px;min-width:44px;text-align:center;flex-shrink:0; }
+.c2xx { background:rgba(0,230,118,.12);color:var(--green); }
+.c3xx { background:rgba(0,229,255,.12);color:var(--cyan); }
+.c4xx { background:rgba(255,171,0,.12);color:var(--amber); }
+.c5xx { background:rgba(255,23,68,.12);color:var(--red); }
+.cerr { background:rgba(255,23,68,.12);color:var(--red); }
+.code-track { flex:1;height:4px;background:var(--edge);border-radius:2px;overflow:hidden; }
+.code-fill { height:100%;border-radius:2px;width:0;transition:width .65s ease; }
+.code-pct { font-size:9px;color:var(--dim);min-width:30px;text-align:right;flex-shrink:0; }
+.code-n { font-size:10px;color:var(--sub);min-width:24px;text-align:right;flex-shrink:0; }
+
+/* ───────── HISTORY TABLE ───────── */
+.htbl { width:100%;border-collapse:collapse; }
+.htbl th { font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:4px 8px;border-bottom:1px solid var(--edge);font-weight:400;text-align:left; }
+.htbl th:not(:first-child) { text-align:right; }
+.htbl td { font-size:10px;color:var(--body);padding:5px 8px;border-bottom:1px solid rgba(26,47,80,.4);vertical-align:middle; }
+.htbl td:not(:first-child) { text-align:right;font-variant-numeric:tabular-nums; }
+.htbl tr:last-child td { border:none; }
+.htbl tr:hover td { background:rgba(0,229,255,.025); }
+.td-url { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px; }
+.t-ok { color:var(--green); }
+.t-warn { color:var(--amber); }
+.t-fail { color:var(--red); }
+.rbullet { display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:6px;vertical-align:middle; }
+
+/* ───────── TERMINAL OVERLAY ───────── */
+#term-overlay {
+  justify-content:center;gap:6px;padding:32px 40px;
+  display:none;
+}
+.tl { font-size:11px;color:var(--muted);opacity:0;transition:opacity .2s;line-height:1.7; }
+.tl.s { opacity:1; }
+.tl.hi { color:var(--cyan); }
+.tl.ok { color:var(--green); }
+.cursor { display:inline-block;width:6px;height:11px;background:var(--cyan);vertical-align:middle;margin-left:2px;animation:blink .9s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1;}50%{opacity:0;} }
+
+/* quick-fill chips */
+.ql-chip {
+  font-family:var(--fn-mono);font-size:8px;letter-spacing:.04em;
+  color:var(--dim);border:1px solid var(--edge);background:transparent;
+  padding:1px 7px;border-radius:2px;cursor:pointer;
+  transition:all .12s;
+}
+.ql-chip:hover { color:var(--cyan);border-color:var(--muted);background:var(--cyang); }
+
+/* error toast */
+#err-toast {
+  position:fixed;top:48px;left:50%;transform:translateX(-50%);z-index:999;
+  background:rgba(255,23,68,.1);border:1px solid rgba(255,23,68,.25);
+  color:var(--red);font-size:11px;padding:7px 16px;border-radius:2px;
+  display:none;white-space:nowrap;backdrop-filter:blur(8px);
+}
+</style>
+</head>
+<body>
+
+<div id="bg"><div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div><div class="beam b4"></div></div>
+<div id="grid"></div>
+<canvas id="particles-canvas" style="position:fixed;inset:0;z-index:0;pointer-events:none;"></canvas>
+<div id="err-toast"></div>
+
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="logo">
+      <div class="logo-mark">B</div>
+      <div class="logo-label">
+        <div class="logo-name">Barrage</div>
+        <div class="logo-tag">API LOAD TESTER</div>
+      </div>
+    </div>
+    <div class="ver-chip">v1.0</div>
+    <div class="sp"></div>
+    <div class="status-cluster">
+      <div class="s-item" id="last-run">no tests run</div>
+      <div class="divider"></div>
+      <div class="s-item"><div class="s-dot on"></div>server online</div>
+    </div>
+  </div>
+
+  <!-- CONFIG BAR -->
+  <div id="cfgbar">
+    <div class="cf cf-url">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+        <label style="margin-bottom:0">Target Endpoint</label>
+        <div style="display:flex;gap:4px;">
+          <button class="ql-chip" onclick="use('https://httpbin.org/get')">httpbin</button>
+          <button class="ql-chip" onclick="use('https://httpbin.org/delay/1')">delay/1</button>
+          <button class="ql-chip" onclick="use('https://jsonplaceholder.typicode.com/posts')">jsonplaceholder</button>
+          <button class="ql-chip" onclick="use('https://httpbin.org/status/404')">404 test</button>
+        </div>
+      </div>
+      <div class="ibox">
+        <span class="ibox-pfx">$</span>
+        <input id="url" type="text" placeholder="https://api.example.com/endpoint" autocomplete="off" spellcheck="false"/>
+      </div>
+    </div>
+    <div class="cf">
+      <label>Requests</label>
+      <div class="ibox"><input id="nreq" type="number" value="20" min="1" max="200"/></div>
+    </div>
+    <div class="cf">
+      <label>Concurrency</label>
+      <div class="ibox"><input id="ncon" type="number" value="5" min="1" max="50"/></div>
+    </div>
+    <button class="fire-btn" id="fireBtn" onclick="fire()">▶ &nbsp;EXECUTE</button>
+  </div>
+
+  <!-- METRIC STRIP -->
+  <div id="metricstrip">
+    <div class="metric m-cyan"  ><div class="m-val cyan"   id="ms-total">—</div><div class="m-lbl">Requests</div></div>
+    <div class="metric m-green" ><div class="m-val green"  id="ms-rate" >—</div><div class="m-lbl">Success Rate</div></div>
+    <div class="metric m-cyan"  ><div class="m-val cyan"   id="ms-avg"  >—</div><div class="m-lbl">Avg Response</div></div>
+    <div class="metric m-amber" ><div class="m-val amber"  id="ms-p90"  >—</div><div class="m-lbl">P90 Latency</div></div>
+    <div class="metric m-purple"><div class="m-val purple" id="ms-p99"  >—</div><div class="m-lbl">P99 Latency</div></div>
+    <div class="metric m-lime"  ><div class="m-val lime"   id="ms-rps"  >—</div><div class="m-lbl">Req / sec</div></div>
+    <div class="metric m-teal"  ><div class="m-val teal"   id="ms-dur"  >—</div><div class="m-lbl">Duration</div></div>
+  </div>
+
+  <!-- MAIN 2×2 GRID -->
+  <div id="main">
+
+    <!-- OVERLAYS sit over the whole grid -->
+    <div class="overlay" id="term-overlay">
+      <div class="tl hi s" id="t0">◆ barrage ready<span class="cursor"></span></div>
+      <div class="tl" id="t1"></div>
+      <div class="tl" id="t2"></div>
+      <div class="tl" id="t3"></div>
+      <div class="tl" id="t4"></div>
+      <div class="tl" id="t5"></div>
+    </div>
+
+    <!-- PANEL A — Response Timeline (top-left) -->
+    <div class="panel">
+      <div class="ph">
+        <div class="dots"><div class="dot9 d-red"></div><div class="dot9 d-ylw"></div><div class="dot9 d-grn"></div></div>
+        <span class="ph-title">Response Timeline</span>
+        <div class="ph-sp"></div>
+        <span class="ph-badge badge-cyan" id="tl-badge">— samples</span>
+      </div>
+      <div class="pb">
+        <div class="chart-wrap">
+          <div class="y-axis" id="tl-ya"></div>
+          <div class="chart-col">
+            <div class="chart-canvas">
+              <div class="bars" id="tl-bars"></div>
+            </div>
+            <div class="x-axis" id="tl-xa"></div>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <span id="tl-range">fire a test to see data</span>
+          <div class="legend-items">
+            <div class="li"><div class="li-dot" style="background:rgba(0,229,255,.6)"></div>under P90</div>
+            <div class="li"><div class="li-dot" style="background:rgba(255,171,0,.6)"></div>P90–P99</div>
+            <div class="li"><div class="li-dot" style="background:rgba(255,23,68,.6)"></div>over P99</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL B — Percentiles + Summary (top-right) -->
+    <div class="panel">
+      <div class="ph">
+        <div class="dots"><div class="dot9 d-red"></div><div class="dot9 d-ylw"></div><div class="dot9 d-grn"></div></div>
+        <span class="ph-title">Latency Percentiles</span>
+        <div class="ph-sp"></div>
+        <span class="ph-badge badge-purple">LATENCY</span>
+      </div>
+      <div class="pb">
+        <div class="pct-grid">
+          <div class="pct-cell"><div class="pct-v cyan"   id="p50">—</div><div class="pct-l">P50 median</div></div>
+          <div class="pct-cell"><div class="pct-v amber"  id="p90">—</div><div class="pct-l">P90 tail</div></div>
+          <div class="pct-cell"><div class="pct-v" style="color:var(--purple)" id="p99">—</div><div class="pct-l">P99 worst</div></div>
+        </div>
+        <div class="trio trio-sep">
+          <div><div class="trio-v" id="tri-min">—</div><div class="trio-l">min</div></div>
+          <div><div class="trio-v cyan" id="tri-avg">—</div><div class="trio-l">avg</div></div>
+          <div><div class="trio-v" id="tri-max">—</div><div class="trio-l">max</div></div>
+        </div>
+        <div class="pf-block">
+          <div class="pf-row">
+            <span style="color:var(--green)" id="pf-ok">— passed</span>
+            <span style="color:var(--red)"   id="pf-fail">— failed</span>
+          </div>
+          <div class="pf-track"><div class="pf-fill" id="pfFill"></div></div>
+        </div>
+        <!-- mini concurrency / rps info -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--edge);margin-top:auto;flex-shrink:0">
+          <div style="background:var(--deep);padding:8px;text-align:center">
+            <div style="font-size:16px;font-weight:700;color:var(--lime);font-variant-numeric:tabular-nums" id="bc-rps">—</div>
+            <div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px">req/sec</div>
+          </div>
+          <div style="background:var(--deep);padding:8px;text-align:center">
+            <div style="font-size:16px;font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums" id="bc-con">—</div>
+            <div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px">workers</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL C — Distribution Histogram (bottom-left) -->
+    <div class="panel">
+      <div class="ph">
+        <div class="dots"><div class="dot9 d-red"></div><div class="dot9 d-ylw"></div><div class="dot9 d-grn"></div></div>
+        <span class="ph-title">Response Distribution</span>
+        <div class="ph-sp"></div>
+        <span class="ph-badge badge-cyan">HISTOGRAM</span>
+      </div>
+      <div class="pb">
+        <div class="chart-wrap">
+          <div class="y-axis" id="dist-ya"></div>
+          <div class="chart-col">
+            <div class="chart-canvas">
+              <div class="bars" id="dist-bars"></div>
+            </div>
+            <div class="x-axis">
+              <span class="xt" id="dx-min">—</span>
+              <span class="xt" id="dx-mid">—</span>
+              <span class="xt" id="dx-max">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <span id="dist-note">sorted by response time, faster → slower</span>
+          <div class="legend-items">
+            <div class="li"><div class="li-dot" style="background:var(--lift)"></div>response time</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL D — Status Codes + History (bottom-right) -->
+    <div class="panel">
+      <div class="ph">
+        <div class="dots"><div class="dot9 d-red"></div><div class="dot9 d-ylw"></div><div class="dot9 d-grn"></div></div>
+        <span class="ph-title">Status Codes &amp; History</span>
+        <div class="ph-sp"></div>
+        <span class="ph-badge badge-green" id="hist-badge">0 runs</span>
+      </div>
+      <div class="pb scroll">
+        <div class="codes" id="code-list">
+          <div style="font-size:10px;color:var(--muted);padding:4px 0">no data yet</div>
+        </div>
+        <div style="border-top:1px solid var(--edge);padding-top:10px;flex-shrink:0">
+          <div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px">Run History</div>
+          <table class="htbl">
+            <thead><tr>
+              <th>Endpoint</th><th>Rate</th><th>Avg</th><th>P90</th><th>RPS</th>
+            </tr></thead>
+            <tbody id="hist-body">
+              <tr><td colspan="5" style="color:var(--muted);font-size:10px;padding:6px 8px">run a test to see history</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+var runHistory = [];
+
+function use(u){ $('#url').val(u).focus(); }
+
+function yAxisLabels(sel, minV, maxV, steps){
+  var n = steps || 5;
+  var html = '';
+  for(var i = n-1; i >= 0; i--){
+    var v = Math.round(minV + (maxV - minV) * i / (n-1));
+    var lbl = v >= 1000 ? (v/1000).toFixed(1)+'s' : v+'ms';
+    html += '<div class="yt">'+lbl+'</div>';
+  }
+  $(sel).html(html);
+}
+
+function fire(){
+  var url = $('#url').val().trim();
+  var req = parseInt($('#nreq').val()) || 20;
+  var con = parseInt($('#ncon').val()) || 5;
+  if(!url) return showErr('Enter a target URL');
+  if(!url.startsWith('http')) return showErr('URL must begin with http:// or https://');
+
+  $('#err-toast').hide();
+  $('#fireBtn').prop('disabled',true).addClass('go').text('⏸ RUNNING...');
+
+  $('#term-overlay').css('display','flex');
+  resetTerm();
+
+  setTimeout(function(){ showT('t1','◆ target: '+url.replace(/https?:\/\//,'')); }, 200);
+  setTimeout(function(){ showT('t2','◆ workers: '+con+' threads'); }, 450);
+  setTimeout(function(){ showT('t3','◆ firing '+req+' requests...'); }, 750);
+  setTimeout(function(){ showT('t4','◆ collecting telemetry...','hi'); }, 1100);
+
+  $.ajax({
+    url:'/api/load-test/run', method:'POST',
+    contentType:'application/json', timeout:45000,
+    data: JSON.stringify({url:url,requestCount:req,concurrency:con}),
+    success:function(d){
+      setTimeout(function(){ showT('t5','◆ complete — '+d.successCount+'/'+d.totalRequests+' ok','ok'); }, 80);
+      setTimeout(function(){ render(d,con); }, 500);
+    },
+    error:function(x,s){
+      showErr(s==='timeout'?'Timed out. Try fewer requests.':'Server error on :8080');
+      $('#term-overlay').hide();
+    },
+    complete:function(){ $('#fireBtn').prop('disabled',false).removeClass('go').text('▶ \u00a0EXECUTE'); }
+  });
+}
+
+function render(d, con){
+  var pct = d.totalRequests>0 ? (d.successCount/d.totalRequests*100) : 0;
+  var times = d.responseTimes || [];
+
+  runHistory.unshift({url:d.url,total:d.totalRequests,rate:pct.toFixed(1),avg:d.avgResponseTimeMs,p90:d.p90,rps:d.requestsPerSecond,dur:d.totalDurationMs,con:con});
+  if(runHistory.length>10) runHistory.pop();
+
+  /* metric strip */
+  ['total','rate','avg','p90','p99','rps','dur'].forEach(function(k){ $('#ms-'+k).closest('.metric').addClass('lit'); });
+  $('#ms-total').text(d.totalRequests);
+  $('#ms-rate').text(pct.toFixed(1)+'%');
+  $('#ms-avg').text(Math.round(d.avgResponseTimeMs)+'ms');
+  $('#ms-p90').text(Math.round(d.p90)+'ms');
+  $('#ms-p99').text(Math.round(d.p99)+'ms');
+  $('#ms-rps').text(d.requestsPerSecond+'/s');
+  $('#ms-dur').text((d.totalDurationMs/1000).toFixed(2)+'s');
+  $('#last-run').text('last run: '+new Date().toLocaleTimeString());
+
+  /* percentiles */
+  $('#p50').text(Math.round(d.p50)+'ms');
+  $('#p90').text(Math.round(d.p90)+'ms');
+  $('#p99').text(Math.round(d.p99)+'ms');
+  $('#tri-min').text(Math.round(d.minResponseTimeMs)+'ms');
+  $('#tri-avg').text(Math.round(d.avgResponseTimeMs)+'ms');
+  $('#tri-max').text(Math.round(d.maxResponseTimeMs)+'ms');
+  $('#pf-ok').text(d.successCount+' passed');
+  $('#pf-fail').text(d.failureCount+' failed');
+  $('#bc-rps').text(d.requestsPerSecond+'/s');
+  $('#bc-con').text(con+' workers');
+  setTimeout(function(){ $('#pfFill').css('width',pct+'%'); }, 80);
+
+  /* timeline */
+  if(times.length){
+    var tlMax = Math.max.apply(null,times);
+    yAxisLabels('#tl-ya', 0, tlMax, 5);
+    var tlH = '';
+    times.slice(0,100).forEach(function(t){
+      var h = Math.max(2, Math.round(t/tlMax*100));
+      var cls = t<=d.p90 ? 'bar-ok' : t<=d.p99 ? 'bar-p90' : 'bar-fail';
+      tlH += '<div class="bar '+cls+'" style="height:'+h+'%" title="'+t+'ms"></div>';
+    });
+    $('#tl-bars').html(tlH);
+    $('#tl-badge').text(times.length+' samples');
+    $('#tl-range').text('range: '+Math.round(d.minResponseTimeMs)+'ms – '+Math.round(d.maxResponseTimeMs)+'ms');
+    /* x axis */
+    var step = Math.max(1, Math.floor(Math.min(times.length,100)/4));
+    var txH = '<span class="xt">1</span>';
+    for(var i=step;i<Math.min(times.length,100)-1;i+=step) txH+='<span class="xt">'+i+'</span>';
+    txH += '<span class="xt">'+Math.min(times.length,100)+'</span>';
+    $('#tl-xa').html(txH);
+  }
+
+  /* distribution — sorted */
+  if(times.length){
+    var sorted = times.slice().sort(function(a,b){return a-b;});
+    var dMin = sorted[0], dMax = sorted[sorted.length-1];
+    yAxisLabels('#dist-ya', dMin, dMax, 5);
+    var dH = '';
+    sorted.slice(0,80).forEach(function(t){
+      var h = Math.max(2, Math.round((t-dMin)/(dMax-dMin||1)*100));
+      dH += '<div class="bar bar-hist" style="height:'+h+'%" title="'+t+'ms"></div>';
+    });
+    $('#dist-bars').html(dH);
+    $('#dx-min').text(Math.round(dMin)+'ms');
+    $('#dx-mid').text(Math.round((dMin+dMax)/2)+'ms');
+    $('#dx-max').text(Math.round(dMax)+'ms');
+  }
+
+  /* status codes */
+  var codes = d.statusCodeCounts || {};
+  var cH = '';
+  Object.keys(codes).map(Number).sort().forEach(function(code){
+    var n = codes[code], w = Math.round(n/d.totalRequests*100);
+    var cls, fill, lbl;
+    if(code===0){cls='cerr';fill='var(--red)';lbl='ERR';}
+    else if(code>=500){cls='c5xx';fill='var(--red)';lbl=code;}
+    else if(code>=400){cls='c4xx';fill='var(--amber)';lbl=code;}
+    else if(code>=300){cls='c3xx';fill='var(--cyan)';lbl=code;}
+    else{cls='c2xx';fill='var(--green)';lbl=code;}
+    cH += '<div class="crow">'+
+      '<div class="code-badge '+cls+'">'+lbl+'</div>'+
+      '<div class="code-track"><div class="code-fill" data-w="'+w+'" style="background:'+fill+'"></div></div>'+
+      '<div class="code-pct">'+w+'%</div>'+
+      '<div class="code-n">'+n+'</div>'+
+    '</div>';
+  });
+  $('#code-list').html(cH || '<div style="font-size:10px;color:var(--muted)">no responses recorded</div>');
+
+  /* history */
+  var hH = '';
+  runHistory.forEach(function(h){
+    var short = h.url.replace(/https?:\/\//,'');
+    var rn = parseFloat(h.rate);
+    var rc = rn>=99?'t-ok':rn>=80?'t-warn':'t-fail';
+    var bc = rn>=99?'var(--green)':rn>=80?'var(--amber)':'var(--red)';
+    hH += '<tr><td class="td-url"><span class="rbullet" style="background:'+bc+'"></span>'+short+'</td>'+
+      '<td class="'+rc+'">'+h.rate+'%</td>'+
+      '<td>'+Math.round(h.avg)+'ms</td>'+
+      '<td>'+Math.round(h.p90)+'ms</td>'+
+      '<td>'+h.rps+'/s</td></tr>';
+  });
+  $('#hist-body').html(hH);
+  $('#hist-badge').text(runHistory.length+' run'+(runHistory.length!==1?'s':''));
+
+  /* hide overlays, animate */
+  $('#term-overlay').hide();
+  setTimeout(function(){
+    $('#tl-bars .bar, #dist-bars .bar').each(function(i){
+      var $b=$(this); setTimeout(function(){$b.addClass('in');},i*7);
+    });
+    $('.code-fill').each(function(){ $(this).css('width',$(this).data('w')+'%'); });
+  }, 60);
+}
+
+function showT(id,txt,cls){ var $e=$('#'+id).text(txt).addClass('s'); if(cls)$e.addClass(cls); }
+function resetTerm(){ $('#t1,#t2,#t3,#t4,#t5').text('').removeClass('s hi ok'); $('#t0').text('◆ barrage ready').addClass('s hi'); }
+function showErr(m){ $('#err-toast').text('✕  '+m).show(); setTimeout(function(){$('#err-toast').fadeOut();},5000); }
+$('#url').on('keypress',function(e){if(e.which===13)fire();});
+
+// particles
+(function(){
+  var c = document.getElementById('particles-canvas');
+  var ctx = c.getContext('2d');
+  var pts = [];
+  function resize(){ c.width = innerWidth; c.height = innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  for(var i = 0; i < 55; i++){
+    pts.push({
+      x: Math.random()*innerWidth, y: Math.random()*innerHeight,
+      vx: (Math.random()-.5)*.15, vy: (Math.random()-.5)*.15,
+      r: Math.random()*.9+.3, a: Math.random()*.25+.05
+    });
+  }
+  function tick(){
+    ctx.clearRect(0,0,c.width,c.height);
+    pts.forEach(function(p){
+      p.x += p.vx; p.y += p.vy;
+      if(p.x < 0) p.x = c.width;
+      if(p.x > c.width) p.x = 0;
+      if(p.y < 0) p.y = c.height;
+      if(p.y > c.height) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,200,255,'+p.a+')';
+      ctx.fill();
+    });
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>

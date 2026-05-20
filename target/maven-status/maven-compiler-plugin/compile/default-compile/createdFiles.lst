@@ -1,0 +1,5 @@
+com/barrage/controller/LoadTestController.class
+com/barrage/BarrageApplication.class
+com/barrage/model/LoadTestResult.class
+com/barrage/service/LoadTestService.class
+com/barrage/model/LoadTestRequest.class
