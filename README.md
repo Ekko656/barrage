@@ -50,15 +50,6 @@ The multi-stage Dockerfile uses a Maven Alpine build stage and a lightweight Ecl
 
 ---
 
-## Deploying to Render
-
-1. Push the repo to GitHub
-2. Create a new **Web Service** on [Render](https://render.com), connect the repo
-3. Set **Environment** to `Docker` — Render will detect the Dockerfile automatically
-4. Port `8080` is already exposed in the Dockerfile
-
----
-
 ## API Reference
 
 ### `POST /api/load-test/run`
